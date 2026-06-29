@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kelola Lisensi — Dishub Tulungagung</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d0f14;
+    --surface:   #13161e;
+    --border:    #1e2330;
+    --border-hi: #2a3045;
+    --text:      #e2e6f0;
+    --muted:     #5a6380;
+    --accent:    #4f8ef7;
+    --accent-lo: rgba(79,142,247,.08);
+    --on:        #22c55e;
+    --on-lo:     rgba(34,197,94,.10);
+    --off:       #ef4444;
+    --off-lo:    rgba(239,68,68,.10);
+    --radius:    12px;
+    --font:      'Inter', system-ui, sans-serif;
+    --mono:      'JetBrains Mono', monospace;
+    --trans:     .25s cubic-bezier(.4,0,.2,1);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-lo);
+    border: 1px solid rgba(79,142,247,.2);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 100px;
+    margin-bottom: 18px;
+  }
+
+  .badge-dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s ease infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:.5; transform:scale(.8); }
+  }
+
+  .header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -.02em;
+  }
+
+  .header p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+  }
+
+  /* ── GITHUB LOGIN BTN ── */
+  .btn-github {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #fff;
+    border: none;
+    border-radius: 8px;
+    color: #0d0f14;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 13px 16px;
+    cursor: pointer;
+    transition: opacity var(--trans), transform var(--trans);
+  }
+
+  .btn-github:hover  { opacity: .9; }
+  .btn-github:active { transform: scale(.98); }
+  .btn-github:disabled { opacity: .4; cursor: not-allowed; }
+
+  .btn-github svg { flex-shrink: 0; }
+
+  /* ── DEVICE FLOW STEP ── */
+  #step-device { display: none; }
+
+  .device-instruction {
+    text-align: center;
+  }
+
+  .device-instruction p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+
+  .device-code {
+    font-family: var(--mono);
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: .2em;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: border-color var(--trans);
+    user-select: all;
+  }
+
+  .device-code:hover { border-color: var(--accent); }
+
+  .copy-hint {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .btn-open-github {
+    width: 100%;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 12px;
+    cursor: pointer;
+    transition: opacity var(--trans);
+    text-decoration: none;
+    display: block;
+    text-align: center;
+  }
+
+  .btn-open-github:hover { opacity: .88; }
+
+  .waiting-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ── DASHBOARD ── */
+  #step-dashboard { display: none; }
+
+  .user-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--border-hi);
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .avatar-fallback {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--accent-lo);
+    border: 2px solid rgba(79,142,247,.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600; color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .user-info { flex: 1; min-width: 0; }
+
+  .user-name {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .user-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 18px 0;
+  }
+
+  .client-meta {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 13px 15px;
+    margin-bottom: 20px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.85;
+    color: var(--muted);
+  }
+
+  .client-meta span { color: var(--text); }
+
+  /* ── TOGGLE ── */
+  .toggle-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .toggle-label  { font-size: 15px; font-weight: 500; margin-bottom: 3px; }
+  .toggle-desc   { font-size: 12px; color: var(--muted); }
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 56px; height: 30px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .switch input { opacity:0; width:0; height:0; }
+
+  .track {
+    position: absolute; inset: 0;
+    border-radius: 100px;
+    background: var(--off-lo);
+    border: 1px solid rgba(239,68,68,.3);
+    transition: background var(--trans), border-color var(--trans);
+  }
+
+  .knob {
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--off);
+    box-shadow: 0 1px 4px rgba(0,0,0,.4);
+    transition: transform var(--trans), background var(--trans);
+  }
+
+  input:checked ~ .track { background: var(--on-lo); border-color: rgba(34,197,94,.3); }
+  input:checked ~ .knob  { transform: translateX(26px); background: var(--on); }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 100px;
+    margin-top: 14px;
+    transition: all var(--trans);
+  }
+
+  .status-pill.active   { background: var(--on-lo);  border: 1px solid rgba(34,197,94,.25); color: var(--on); }
+  .status-pill.inactive { background: var(--off-lo); border: 1px solid rgba(239,68,68,.25); color: var(--off); }
+  .pill-dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+  /* ── SAVE BTN ── */
+  .btn-save {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border-hi);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 12px;
+    cursor: pointer;
+    transition: all var(--trans);
+    margin-top: 18px;
+  }
+
+  .btn-save:hover   { border-color: var(--accent); color: var(--accent); background: var(--accent-lo); }
+  .btn-save:disabled { opacity:.4; cursor:not-allowed; }
+  .btn-save.saving  { border-color: var(--accent); color: var(--accent); }
+  .btn-save.success { border-color: var(--on); color: var(--on); background: var(--on-lo); }
+  .btn-save.fail    { border-color: var(--off); color: var(--off); background: var(--off-lo); }
+
+  /* ── FOOTER ── */
+  .footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .footer a { color: var(--muted); text-decoration: none; cursor: pointer; }
+  .footer a:hover { color: var(--text); }
+
+  /* ── UTILS ── */
+  .error-msg {
+    display: none;
+    background: var(--off-lo);
+    border: 1px solid rgba(239,68,68,.2);
+    color: var(--off);
+    border-radius: 8px;
+    font-size: 13px;
+    padding: 10px 14px;
+    margin-top: 12px;
+    text-align: center;
+  }
+  .error-msg.show { display: block; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    display: inline-block;
+    width: 13px; height: 13px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(8px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  .card { animation: fadeUp .3s ease; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="badge"><span class="badge-dot"></span> Manajemen Lisensi</div>
+    <h1>Kelola Lisensi Klien</h1>
+    <p>Login dengan akun GitHub untuk mengontrol<br>status akses aplikasi klien.</p>
+  </div>
+
+  <!-- STEP 1: LOGIN -->
+  <div id="step-login">
+    <div class="card">
+      <button class="btn-github" id="btn-github" onclick="startDeviceFlow()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+        Masuk dengan GitHub
+      </button>
+      <div class="error-msg" id="err-login"></div>
+    </div>
+  </div>
+
+  <!-- STEP 2: DEVICE CODE -->
+  <div id="step-device">
+    <div class="card">
+      <div class="device-instruction">
+        <p>Salin kode di bawah, lalu klik tombol untuk membuka halaman otorisasi GitHub.</p>
+
+        <div class="device-code" id="device-code-display" onclick="copyCode()" title="Klik untuk salin">
+          ········
+        </div>
+        <div class="copy-hint" id="copy-hint">klik kode untuk menyalin</div>
+
+        <a class="btn-open-github" id="btn-open-gh" href="#" target="_blank" rel="noopener" onclick="openGitHub()">
+          Buka github.com/login/device →
+        </a>
+
+        <div class="waiting-row">
+          <span class="spinner"></span>
+          <span id="waiting-text">Menunggu otorisasi…</span>
+        </div>
+      </div>
+      <div class="error-msg" id="err-device"></div>
+    </div>
+    <div class="footer"><a onclick="cancelDevice()">← Kembali</a></div>
+  </div>
+
+  <!-- STEP 3: DASHBOARD -->
+  <div id="step-dashboard">
+    <div class="card">
+      <div class="user-row">
+        <img class="avatar" id="gh-avatar" src="" alt="" onerror="this.style.display='none'; document.getElementById('avatar-fallback').style.display='flex'">
+        <div class="avatar-fallback" id="avatar-fallback" style="display:none" id="avatar-fallback">R</div>
+        <div class="user-info">
+          <div class="user-name" id="gh-username">—</div>
+          <div class="user-sub">Terautentikasi via GitHub</div>
+        </div>
+      </div>
+
+      <div class="client-meta" id="meta-box">—</div>
+
+      <div class="toggle-section">
+        <div>
+          <div class="toggle-label">Status Lisensi</div>
+          <div class="toggle-desc">Kontrol akses aplikasi klien</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-active" onchange="onToggle(this)">
+          <div class="track"></div>
+          <div class="knob"></div>
+        </label>
+      </div>
+
+      <div id="status-pill" class="status-pill inactive">
+        <span class="pill-dot"></span>
+        <span id="status-text">Nonaktif</span>
+      </div>
+
+      <button class="btn-save" id="btn-save" onclick="doSave()">Simpan Perubahan</button>
+      <div class="error-msg" id="err-save"></div>
+    </div>
+
+    <div class="footer">
+      <a onclick="doLogout()">Keluar</a>
+      &nbsp;·&nbsp;
+      <span id="last-updated">—</span>
+    </div>
+  </div>
+
+</div>
+<script>
+// ══════════════════════════════════════════════════════
+// CONFIG — sesuaikan
+// ══════════════════════════════════════════════════════
+const REPO_OWNER  = 'robertusdanan';
+const REPO_NAME   = 'lisensiangkutandishub';
+const FILE_PATH   = 'dishub-tulungagung.json';
+const BRANCH      = 'main';
+const GH_CLIENT_ID = 'Ov23lidXJNHRGMPKeOX5'; 
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let ghToken      = sessionStorage.getItem('gh_token') || '';
+let currentData  = null;
+let currentSha   = '';
+let pendingActive = null;
+let pollTimer    = null;
+let deviceInterval = null;
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', async () => {
+  if (ghToken) {
+    try {
+      await loadDashboard();
+    } catch(e) {
+      ghToken = '';
+      sessionStorage.removeItem('gh_token');
+      showStep('login');
+    }
+  } else {
+    showStep('login');
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// DEVICE FLOW
+// ══════════════════════════════════════════════════════
+async function startDeviceFlow() {
+  if (GH_CLIENT_ID === 'YOUR_CLIENT_ID') {
+    showErr('err-login', 'Isi GH_CLIENT_ID di bagian CONFIG terlebih dahulu.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-github');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Menghubungi GitHub…';
+  hideErr('err-login');
+
+  try {
+    // GitHub Device Flow: minta device_code
+    const res = await fetch('https://github.com/login/device/code', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: GH_CLIENT_ID, scope: 'repo' }),
+    });
+
+    if (!res.ok) throw new Error('Gagal menghubungi GitHub.');
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error_description || data.error);
+
+    // Tampilkan kode ke user
+    document.getElementById('device-code-display').textContent = data.user_code;
+    document.getElementById('btn-open-gh').href = data.verification_uri;
+    showStep('device');
+
+    // Mulai polling token
+    startPolling(data.device_code, data.interval || 5, data.expires_in || 900);
+
+  } catch(e) {
+    showErr('err-login', e.message);
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg> Masuk dengan GitHub`;
+  }
+}
+
+function startPolling(deviceCode, interval, expiresIn) {
+  let elapsed = 0;
+  const waitEl = document.getElementById('waiting-text');
+
+  deviceInterval = setInterval(async () => {
+    elapsed += interval;
+    if (elapsed >= expiresIn) {
+      clearInterval(deviceInterval);
+      showErr('err-device', 'Waktu habis. Silakan coba lagi.');
+      cancelDevice();
+      return;
+    }
+
+    // Update countdown
+    const remaining = expiresIn - elapsed;
+    waitEl.textContent = `Menunggu otorisasi… (${remaining}d)`;
+
+    try {
+      const res = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: GH_CLIENT_ID,
+          device_code: deviceCode,
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.error === 'authorization_pending') return; // masih menunggu
+      if (data.error === 'slow_down') { interval += 5; return; }
+      if (data.error) throw new Error(data.error_description || data.error);
+
+      // Berhasil!
+      clearInterval(deviceInterval);
+      ghToken = data.access_token;
+      sessionStorage.setItem('gh_token', ghToken);
+      await loadDashboard();
+
+    } catch(e) {
+      clearInterval(deviceInterval);
+      showErr('err-device', e.message);
+    }
+  }, interval * 1000);
+}
+
+function cancelDevice() {
+  clearInterval(deviceInterval);
+  showStep('login');
+  const btn = document.getElementById('btn-github');
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg> Masuk dengan GitHub`;
+}
+
+function openGitHub() {
+  // Sudah buka via href target="_blank", tidak perlu aksi tambahan
+}
+
+function copyCode() {
+  const code = document.getElementById('device-code-display').textContent.trim();
+  navigator.clipboard.writeText(code).then(() => {
+    document.getElementById('copy-hint').textContent = '✓ Tersalin!';
+    setTimeout(() => {
+      document.getElementById('copy-hint').textContent = 'klik kode untuk menyalin';
+    }, 2000);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════
+async function loadDashboard() {
+  // Ambil profil user GitHub
+  const userRes = await ghFetch('https://api.github.com/user');
+  const user = await userRes.json();
+
+  // Cek apakah user ini punya akses ke repo
+  const repoRes = await ghFetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`);
+  if (!repoRes.ok) throw new Error('Akun ini tidak punya akses ke repo tersebut.');
+
+  // Ambil file JSON
+  await fetchJson();
+
+  // Render UI
+  document.getElementById('gh-avatar').src = user.avatar_url;
+  document.getElementById('gh-username').textContent = user.login;
+
+  showStep('dashboard');
+  renderMeta();
+  renderStatus();
+}
+
+async function fetchJson() {
+  const res = await ghFetch(
+    `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=${BRANCH}`
+  );
+  if (!res.ok) throw new Error(`Gagal ambil file: ${res.status}`);
+  const data = await res.json();
+  currentSha  = data.sha;
+  currentData = JSON.parse(atob(data.content.replace(/\n/g, '')));
+  pendingActive = currentData.active;
+}
+
+async function doSave() {
+  const btn = document.getElementById('btn-save');
+  hideErr('err-save');
+  btn.disabled = true;
+  btn.className = 'btn-save saving';
+  btn.innerHTML = '<span class="spinner"></span>Menyimpan…';
+
+  try {
+    const updated = { ...currentData, active: pendingActive, updated: todayISO() };
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(updated, null, 2) + '\n')));
+
+    const res = await ghFetch(
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `chore: set active=${pendingActive} [kelola]`,
+          content,
+          sha: currentSha,
+          branch: BRANCH,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const body = await res.json();
+      throw new Error(body.message || res.statusText);
+    }
+
+    const result = await res.json();
+    currentSha  = result.content.sha;
+    currentData = updated;
+
+    btn.className = 'btn-save success';
+    btn.textContent = '✓ Tersimpan';
+    renderMeta();
+    setTimeout(resetSaveBtn, 2500);
+
+  } catch(e) {
+    showErr('err-save', e.message);
+    btn.className = 'btn-save fail';
+    btn.textContent = '✕ Gagal menyimpan';
+    setTimeout(resetSaveBtn, 3000);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// UI HELPERS
+// ══════════════════════════════════════════════════════
+function showStep(step) {
+  ['login','device','dashboard'].forEach(s => {
+    document.getElementById(`step-${s}`).style.display = s === step ? 'block' : 'none';
+  });
+}
+
+function renderMeta() {
+  const d = currentData;
+  document.getElementById('meta-box').innerHTML =
+    `<span>client  </span><span>${d.client}</span><br>` +
+    `<span>note    </span><span>${d.note}</span><br>` +
+    `<span>dev     </span><span>${d.developer}</span><br>` +
+    `<span>updated </span><span>${d.updated}</span>`;
+  document.getElementById('last-updated').textContent = 'Diperbarui ' + d.updated;
+}
+
+function renderStatus() {
+  const toggle = document.getElementById('toggle-active');
+  const pill   = document.getElementById('status-pill');
+  const text   = document.getElementById('status-text');
+  toggle.checked = pendingActive;
+  pill.className = 'status-pill ' + (pendingActive ? 'active' : 'inactive');
+  text.textContent = pendingActive ? 'Aktif' : 'Nonaktif';
+}
+
+function onToggle(el) {
+  pendingActive = el.checked;
+  renderStatus();
+  resetSaveBtn();
+}
+
+function resetSaveBtn() {
+  const btn = document.getElementById('btn-save');
+  btn.className = 'btn-save';
+  btn.textContent = 'Simpan Perubahan';
+  btn.disabled = false;
+}
+
+function doLogout() {
+  ghToken = '';
+  sessionStorage.removeItem('gh_token');
+  currentData = null; currentSha = ''; pendingActive = null;
+  showStep('login');
+}
+
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function hideErr(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+function ghFetch(url, opts = {}) {
+  return fetch(url, {
+    ...opts,
+    headers: {
+      'Authorization': `Bearer ${ghToken}`,
+      'Accept': 'application/vnd.github+json',
+      ...(opts.headers || {}),
+    },
+  });
+}
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+</script>
+</body>
+</html>
