@@ -502,6 +502,14 @@ const FILE_PATH   = 'dishub-tulungagung.json';
 const BRANCH      = 'main';
 const GH_CLIENT_ID = 'Ov23lidXJNHRGMPKeOX5';
 
+// Hanya akun GitHub berikut yang boleh login & mengontrol kill switch.
+// Diizinkan jika salah satu terpenuhi:
+//   1) username GitHub cocok dengan ALLOWED_LOGINS, ATAU
+//   2) salah satu email terverifikasi di akun itu cocok dengan ALLOWED_EMAILS, ATAU
+//   3) akun itu adalah collaborator repo ini dengan izin tulis (write/admin/maintain).
+const ALLOWED_LOGINS = ['robertusdanan'];
+const ALLOWED_EMAILS = ['rdananhp@gmail.com'];
+
 // URL proxy PHP (lihat gh-oauth-proxy.php) — WAJIB diisi dengan URL server
 // tempat kamu deploy gh-oauth-proxy.php. GitHub Pages tidak bisa
 // menjalankan PHP, jadi proxy ini harus di-host di server lain
@@ -563,7 +571,7 @@ async function startDeviceFlow() {
     const res = await fetch(`${OAUTH_PROXY_BASE}?action=device_code`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ client_id: GH_CLIENT_ID, scope: 'repo' }),
+      body: JSON.stringify({ client_id: GH_CLIENT_ID, scope: 'repo user:email' }),
     });
 
     if (!res.ok) throw new Error('Gagal menghubungi GitHub.');
@@ -590,53 +598,60 @@ function startPolling(deviceCode, interval, expiresIn) {
   let elapsed = 0;
   const waitEl = document.getElementById('waiting-text');
 
-  deviceInterval = setInterval(async () => {
-    elapsed += interval;
-    if (elapsed >= expiresIn) {
-      clearInterval(deviceInterval);
-      showErr('err-device', 'Waktu habis. Silakan coba lagi.');
-      cancelDevice();
-      return;
-    }
+  function tick() {
+    deviceInterval = setTimeout(async () => {
+      elapsed += interval;
+      if (elapsed >= expiresIn) {
+        showErr('err-device', 'Waktu habis. Silakan coba lagi.');
+        cancelDevice();
+        return;
+      }
 
-    // Update countdown
-    const remaining = expiresIn - elapsed;
-    waitEl.textContent = `Menunggu otorisasi… (${remaining}d)`;
+      // Update countdown
+      const remaining = expiresIn - elapsed;
+      waitEl.textContent = `Menunggu otorisasi… (${remaining}d)`;
 
-    try {
-      // (lewat proxy karena github.com/login/oauth/access_token tidak mendukung CORS dari browser)
-      // Sama seperti di atas: text/plain agar tidak memicu preflight OPTIONS.
-      const res = await fetch(`${OAUTH_PROXY_BASE}?action=access_token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({
-          client_id: GH_CLIENT_ID,
-          device_code: deviceCode,
-          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-        }),
-      });
+      try {
+        // (lewat proxy karena github.com/login/oauth/access_token tidak mendukung CORS dari browser)
+        // Content-Type text/plain agar tidak memicu preflight OPTIONS.
+        const res = await fetch(`${OAUTH_PROXY_BASE}?action=access_token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            client_id: GH_CLIENT_ID,
+            device_code: deviceCode,
+            grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          }),
+        });
 
-      const data = await res.json();
+        const data = await res.json();
+        // Debug: buka tab Console untuk lihat respons mentah tiap polling
+        console.debug('[device-flow poll]', res.status, data);
 
-      if (data.error === 'authorization_pending') return; // masih menunggu
-      if (data.error === 'slow_down') { interval += 5; return; }
-      if (data.error) throw new Error(data.error_description || data.error);
+        if (data.error === 'authorization_pending') { tick(); return; } // masih menunggu, lanjut poll
+        if (data.error === 'slow_down') {
+          interval = (data.interval || interval + 5);
+          tick();
+          return;
+        }
+        if (data.error) throw new Error(data.error_description || data.error);
 
-      // Berhasil!
-      clearInterval(deviceInterval);
-      ghToken = data.access_token;
-      sessionStorage.setItem('gh_token', ghToken);
-      await loadDashboard();
+        // Berhasil!
+        ghToken = data.access_token;
+        sessionStorage.setItem('gh_token', ghToken);
+        await loadDashboard();
 
-    } catch(e) {
-      clearInterval(deviceInterval);
-      showErr('err-device', e.message);
-    }
-  }, interval * 1000);
+      } catch(e) {
+        showErr('err-device', e.message);
+      }
+    }, interval * 1000);
+  }
+
+  tick();
 }
 
 function cancelDevice() {
-  clearInterval(deviceInterval);
+  clearTimeout(deviceInterval);
   showStep('login');
   const btn = document.getElementById('btn-github');
   btn.disabled = false;
@@ -665,9 +680,9 @@ async function loadDashboard() {
   const userRes = await ghFetch('https://api.github.com/user');
   const user = await userRes.json();
 
-  // Cek apakah user ini punya akses ke repo
-  const repoRes = await ghFetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`);
-  if (!repoRes.ok) throw new Error('Akun ini tidak punya akses ke repo tersebut.');
+  // Cek apakah akun ini diizinkan (username/email allowlist, atau collaborator repo)
+  const authorized = await isAuthorizedUser(user);
+  if (!authorized) throw new Error('Akun GitHub ini tidak diizinkan mengakses kill switch.');
 
   // Ambil file JSON
   await fetchJson();
@@ -679,6 +694,37 @@ async function loadDashboard() {
   showStep('dashboard');
   renderMeta();
   renderStatus();
+}
+
+async function isAuthorizedUser(user) {
+  // 1) Cocok berdasarkan username
+  const login = (user.login || '').toLowerCase();
+  if (ALLOWED_LOGINS.some(l => l.toLowerCase() === login)) return true;
+
+  // 2) Cocok berdasarkan salah satu email terverifikasi di akun tsb
+  try {
+    const emailRes = await ghFetch('https://api.github.com/user/emails');
+    if (emailRes.ok) {
+      const emails = await emailRes.json();
+      const hasAllowedEmail = emails.some(
+        e => e.verified && ALLOWED_EMAILS.includes((e.email || '').toLowerCase())
+      );
+      if (hasAllowedEmail) return true;
+    }
+  } catch (_) { /* abaikan, lanjut ke pengecekan berikutnya */ }
+
+  // 3) Cocok berdasarkan izin tulis (collaborator) di repo ini
+  try {
+    const permRes = await ghFetch(
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/collaborators/${user.login}/permission`
+    );
+    if (permRes.ok) {
+      const perm = await permRes.json();
+      if (['admin', 'write', 'maintain'].includes(perm.permission)) return true;
+    }
+  } catch (_) { /* abaikan */ }
+
+  return false;
 }
 
 async function fetchJson() {
