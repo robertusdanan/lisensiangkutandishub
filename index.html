@@ -500,7 +500,10 @@ const REPO_OWNER  = 'robertusdanan';
 const REPO_NAME   = 'lisensiangkutandishub';
 const FILE_PATH   = 'dishub-tulungagung.json';
 const BRANCH      = 'main';
-const GH_CLIENT_ID = 'Ov23lidXJNHRGMPKeOX5'; 
+const GH_CLIENT_ID = 'Ov23lidXJNHRGMPKeOX5';
+
+
+const OAUTH_PROXY_BASE = 'https://parokitulungagung.org/gh-oauth-proxy.php';
 
 // ══════════════════════════════════════════════════════
 // STATE
@@ -537,6 +540,10 @@ async function startDeviceFlow() {
     showErr('err-login', 'Isi GH_CLIENT_ID di bagian CONFIG terlebih dahulu.');
     return;
   }
+  if (!OAUTH_PROXY_BASE || OAUTH_PROXY_BASE.includes('GANTI-DENGAN-DOMAIN-KAMU')) {
+    showErr('err-login', 'Isi OAUTH_PROXY_BASE di bagian CONFIG dengan URL server tempat gh-oauth-proxy.php di-deploy.');
+    return;
+  }
 
   const btn = document.getElementById('btn-github');
   btn.disabled = true;
@@ -545,7 +552,8 @@ async function startDeviceFlow() {
 
   try {
     // GitHub Device Flow: minta device_code
-    const res = await fetch('https://github.com/login/device/code', {
+    // (lewat proxy karena github.com/login/device/code tidak mendukung CORS dari browser)
+    const res = await fetch(`${OAUTH_PROXY_BASE}?action=device_code`, {
       method: 'POST',
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ client_id: GH_CLIENT_ID, scope: 'repo' }),
@@ -589,7 +597,8 @@ function startPolling(deviceCode, interval, expiresIn) {
     waitEl.textContent = `Menunggu otorisasi… (${remaining}d)`;
 
     try {
-      const res = await fetch('https://github.com/login/oauth/access_token', {
+      // (lewat proxy karena github.com/login/oauth/access_token tidak mendukung CORS dari browser)
+      const res = await fetch(`${OAUTH_PROXY_BASE}?action=access_token`, {
         method: 'POST',
         headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
