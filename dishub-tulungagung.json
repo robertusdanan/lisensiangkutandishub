@@ -1,7 +1,7 @@
 {
   "client": "dishub-tulungagung",
-  "active": true,
-  "note": "Aplikasi Absensi Angkutan Sekolah — Dishub Kab. Tulungagung",
+  "active": false,
+  "note": "Aplikasi Absensi Angkutan Sekolah â Dishub Kab. Tulungagung",
   "developer": "robertusdanan",
-  "updated": "2026-06-15"
+  "updated": "2026-07-25"
 }
