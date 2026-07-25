@@ -502,8 +502,11 @@ const FILE_PATH   = 'dishub-tulungagung.json';
 const BRANCH      = 'main';
 const GH_CLIENT_ID = 'Ov23lidXJNHRGMPKeOX5';
 
-
-const OAUTH_PROXY_BASE = 'https://parokitulungagung.org/gh-oauth-proxy.php';
+// URL proxy PHP (lihat gh-oauth-proxy.php) — WAJIB diisi dengan URL server
+// tempat kamu deploy gh-oauth-proxy.php. GitHub Pages tidak bisa
+// menjalankan PHP, jadi proxy ini harus di-host di server lain
+// (mis. host yang sama dengan angkutan/absen, atau Render).
+const OAUTH_PROXY_BASE = 'https://www.parokitulungagung.org/gh-oauth-proxy.php';
 
 // ══════════════════════════════════════════════════════
 // STATE
@@ -553,9 +556,13 @@ async function startDeviceFlow() {
   try {
     // GitHub Device Flow: minta device_code
     // (lewat proxy karena github.com/login/device/code tidak mendukung CORS dari browser)
+    // Content-Type sengaja text/plain (bukan application/json) supaya request ini
+    // dianggap "simple request" oleh browser dan TIDAK memicu CORS preflight (OPTIONS).
+    // Banyak shared hosting (cPanel) memblokir method OPTIONS di level server,
+    // jadi preflight harus dihindari. Body tetap JSON, proxy PHP membaca raw body apa adanya.
     const res = await fetch(`${OAUTH_PROXY_BASE}?action=device_code`, {
       method: 'POST',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ client_id: GH_CLIENT_ID, scope: 'repo' }),
     });
 
@@ -598,9 +605,10 @@ function startPolling(deviceCode, interval, expiresIn) {
 
     try {
       // (lewat proxy karena github.com/login/oauth/access_token tidak mendukung CORS dari browser)
+      // Sama seperti di atas: text/plain agar tidak memicu preflight OPTIONS.
       const res = await fetch(`${OAUTH_PROXY_BASE}?action=access_token`, {
         method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({
           client_id: GH_CLIENT_ID,
           device_code: deviceCode,
